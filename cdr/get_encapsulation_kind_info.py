@@ -64,7 +64,10 @@ def get_encapsulation_kind_info(kind: EncapsulationKind) -> EncapsulationInfo:
         EncapsulationKind.RTPS_PL_CDR2_LE,
     }
 
-    is_pl_cdr1 = kind in {EncapsulationKind.PL_CDR_BE, EncapsulationKind.PL_CDR_LE}
+    is_pl_cdr1 = kind in {
+        EncapsulationKind.PL_CDR_BE,
+        EncapsulationKind.PL_CDR_LE,
+    }
 
     uses_delimiter_header = is_delimited_cdr2 or is_pl_cdr2
     uses_member_header = is_pl_cdr2 or is_pl_cdr1

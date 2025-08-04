@@ -40,8 +40,8 @@ def get_length_code_for_object_size(object_size: int) -> LengthCode:
 
     if object_size > 0xFFFFFFFF:
         raise LengthCodeError(
-            "Object size %d for EMHEADER too large without specifying length code. Max size is %d"
-            % (object_size, 0xFFFFFFFF)
+            "Object size %d for EMHEADER too large without specifying length code. "
+            "Max size is %d" % (object_size, 0xFFFFFFFF)
         )
 
     # For any other size up to the maximum, a length code of 4 is used.

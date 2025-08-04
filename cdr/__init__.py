@@ -9,10 +9,7 @@ implemented components.
 from __future__ import annotations
 
 from .encapsulation_kind import EncapsulationKind
-from .get_encapsulation_kind_info import (
-    EncapsulationInfo,
-    get_encapsulation_kind_info,
-)
+from .get_encapsulation_kind_info import EncapsulationInfo, get_encapsulation_kind_info
 from .is_big_endian import is_big_endian
 from .length_codes import (
     LengthCode,
