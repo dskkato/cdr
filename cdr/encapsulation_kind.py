@@ -8,16 +8,17 @@ serialized within a CDR stream.
 
 from __future__ import annotations
 
-from enum import IntEnum
+from enum import Enum
 
 
-class EncapsulationKind(IntEnum):
+class EncapsulationKind(Enum):
     """Enumeration of the various CDR encapsulation kinds.
 
-    The integer values match those used by the TypeScript implementation
-    and the DDS-XTypes specification.  They are intentionally defined as
-    ``IntEnum`` so that the values can be used directly in binary
-    operations or compared against integers.
+    The member values match those used by the TypeScript implementation
+    and the DDS-XTypes specification.  ``Enum`` is used instead of
+    :class:`~enum.IntEnum` to provide a closer analogue to TypeScript's
+    ``enum`` semantics; code that requires the numerical value should use
+    the :attr:`value` attribute of each member.
     """
 
     # Plain CDR encodings
