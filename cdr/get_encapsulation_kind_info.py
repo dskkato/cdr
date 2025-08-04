@@ -37,7 +37,9 @@ def get_encapsulation_kind_info(kind: EncapsulationKind) -> EncapsulationInfo:
         and whether it uses delimiter or member headers.
     """
 
-    is_cdr2 = kind > EncapsulationKind.PL_CDR_LE
+    # ``Enum`` members do not support ordering comparisons directly, so we
+    # compare using their underlying integer values.
+    is_cdr2 = kind.value > EncapsulationKind.PL_CDR_LE.value
 
     little_endian = kind in {
         EncapsulationKind.CDR_LE,
