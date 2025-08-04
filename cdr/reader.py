@@ -8,8 +8,8 @@ CDR specification.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import struct
+from dataclasses import dataclass
 from typing import List
 
 from .encapsulation_kind import EncapsulationKind
@@ -171,7 +171,7 @@ class CdrReader:
             self.offset += length
             return ""
 
-        data = self._view[self.offset:self.offset + length - 1]
+        data = self._view[self.offset : self.offset + length - 1]
         value = data.tobytes().decode("utf-8")
         self.offset += length
         return value
@@ -279,7 +279,7 @@ class CdrReader:
         count = self.sequence_length() if count is None else count
         if count == 0:
             return []
-        data = self._view[self.offset:self.offset + count]
+        data = self._view[self.offset : self.offset + count]
         self.offset += count
         return list(struct.unpack(f"{count}b", data.tobytes()))
 
@@ -287,7 +287,7 @@ class CdrReader:
         count = self.sequence_length() if count is None else count
         if count == 0:
             return []
-        data = self._view[self.offset:self.offset + count]
+        data = self._view[self.offset : self.offset + count]
         self.offset += count
         return list(struct.unpack(f"{count}B", data.tobytes()))
 
