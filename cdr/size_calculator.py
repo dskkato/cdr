@@ -88,4 +88,3 @@ class CdrSizeCalculator:
             self._offset += byte_count - alignment
         self._offset += byte_count
         return self._offset
-

@@ -54,7 +54,7 @@ class CdrWriter:
         # Representation identifier and options field
         self._resize_if_needed(4)
         self._buffer[0] = 0
-        self._buffer[1] = int(kind)
+        self._buffer[1] = kind.value
         struct.pack_into(">H", self._buffer, 2, 0)
         self._offset = 4
         self._origin = 4
@@ -203,7 +203,9 @@ class CdrWriter:
     # ------------------------------------------------------------------
     # Array writers (simple loop based implementations)
     # ------------------------------------------------------------------
-    def int8Array(self, value: Sequence[int] | bytes | bytearray, writeLength: bool | None = False) -> CdrWriter:
+    def int8Array(
+        self, value: Sequence[int] | bytes | bytearray, writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         if isinstance(value, (bytes, bytearray)):
@@ -215,7 +217,9 @@ class CdrWriter:
                 self.int8(entry)
         return self
 
-    def uint8Array(self, value: Sequence[int] | bytes | bytearray, writeLength: bool | None = False) -> CdrWriter:
+    def uint8Array(
+        self, value: Sequence[int] | bytes | bytearray, writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         if isinstance(value, (bytes, bytearray)):
@@ -227,56 +231,72 @@ class CdrWriter:
                 self.uint8(entry)
         return self
 
-    def int16Array(self, value: Sequence[int], writeLength: bool | None = False) -> CdrWriter:
+    def int16Array(
+        self, value: Sequence[int], writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         for entry in value:
             self.int16(entry)
         return self
 
-    def uint16Array(self, value: Sequence[int], writeLength: bool | None = False) -> CdrWriter:
+    def uint16Array(
+        self, value: Sequence[int], writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         for entry in value:
             self.uint16(entry)
         return self
 
-    def int32Array(self, value: Sequence[int], writeLength: bool | None = False) -> CdrWriter:
+    def int32Array(
+        self, value: Sequence[int], writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         for entry in value:
             self.int32(entry)
         return self
 
-    def uint32Array(self, value: Sequence[int], writeLength: bool | None = False) -> CdrWriter:
+    def uint32Array(
+        self, value: Sequence[int], writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         for entry in value:
             self.uint32(entry)
         return self
 
-    def int64Array(self, value: Sequence[int], writeLength: bool | None = False) -> CdrWriter:
+    def int64Array(
+        self, value: Sequence[int], writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         for entry in value:
             self.int64(int(entry))
         return self
 
-    def uint64Array(self, value: Sequence[int], writeLength: bool | None = False) -> CdrWriter:
+    def uint64Array(
+        self, value: Sequence[int], writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         for entry in value:
             self.uint64(int(entry))
         return self
 
-    def float32Array(self, value: Sequence[float], writeLength: bool | None = False) -> CdrWriter:
+    def float32Array(
+        self, value: Sequence[float], writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         for entry in value:
             self.float32(float(entry))
         return self
 
-    def float64Array(self, value: Sequence[float], writeLength: bool | None = False) -> CdrWriter:
+    def float64Array(
+        self, value: Sequence[float], writeLength: bool | None = False
+    ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         for entry in value:
@@ -319,7 +339,9 @@ class CdrWriter:
             return
         self._buffer.extend(b"\x00" * (capacity - len(self._buffer)))
 
-    def _member_header_v1(self, mustUnderstand: bool, id: int, objectSize: int) -> CdrWriter:
+    def _member_header_v1(
+        self, mustUnderstand: bool, id: int, objectSize: int
+    ) -> CdrWriter:
         self.align(4)
         must_flag = (1 << 14) if mustUnderstand else 0
         use_extended = id > 0x3F00 or objectSize > 0xFFFF
@@ -342,11 +364,15 @@ class CdrWriter:
         lengthCode: LengthCode | None,
     ) -> CdrWriter:
         if id > 0x0FFFFFFF:
-            raise ValueError("Member ID %d is too large. Max value is %d" % (id, 0x0FFFFFFF))
+            raise ValueError(
+                "Member ID %d is too large. Max value is %d" % (id, 0x0FFFFFFF)
+            )
 
         must_flag = (1 << 31) if mustUnderstand else 0
         final_length_code: LengthCode = (
-            lengthCode if lengthCode is not None else get_length_code_for_object_size(objectSize)
+            lengthCode
+            if lengthCode is not None
+            else get_length_code_for_object_size(objectSize)
         )
         header = must_flag | (final_length_code << 28) | id
         self.uint32(header)
@@ -355,7 +381,10 @@ class CdrWriter:
             should_be = length_code_to_object_sizes[final_length_code]
             if objectSize != should_be:
                 raise ValueError(
-                    "Cannot write a length code %d header with an object size not equal to %d"
+                    (
+                        "Cannot write a length code %d header with an object size not "
+                        "equal to %d"
+                    )
                     % (final_length_code, should_be)
                 )
         elif final_length_code in (4, 5):
@@ -363,17 +392,22 @@ class CdrWriter:
         elif final_length_code == 6:
             if objectSize % 4 != 0:
                 raise ValueError(
-                    "Cannot write a length code 6 header with an object size that is not a multiple of 4"
+                    (
+                        "Cannot write a length code 6 header with an object size "
+                        "that is not a multiple of 4"
+                    )
                 )
             self.uint32(objectSize >> 2)
         elif final_length_code == 7:
             if objectSize % 8 != 0:
                 raise ValueError(
-                    "Cannot write a length code 7 header with an object size that is not a multiple of 8"
+                    (
+                        "Cannot write a length code 7 header with an object size "
+                        "that is not a multiple of 8"
+                    )
                 )
             self.uint32(objectSize >> 3)
         else:
             raise ValueError("Unexpected length code %d" % final_length_code)
 
         return self
-
