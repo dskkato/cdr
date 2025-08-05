@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import struct
 from array import array
 
 import pytest
@@ -137,39 +136,38 @@ def test_round_trips_all_array_types(kind: EncapsulationKind) -> None:
 
 @pytest.mark.parametrize("kind", [EncapsulationKind.CDR_LE, EncapsulationKind.CDR_BE])
 @pytest.mark.parametrize(
-    "method, values, fmt, typecode",
+    "method, values, typecode",
     [
-        ("int8Array", [-128, 0, 127], "b", "b"),
-        ("int16Array", [-32768, 0, 32767], "h", "h"),
-        ("uint32Array", [0, 1, 0xFFFFFFFF], "I", "I"),
-        ("float64Array", [0.0, 1.5, -2.25], "d", "d"),
+        ("int16Array", [-32768, 0, 32767], "h"),
+        ("uint16Array", [0, 1, 65535], "H"),
+        ("int32Array", [-2147483648, 0, 2147483647], "i"),
+        ("uint32Array", [0, 1, 0xFFFFFFFF], "I"),
+        ("int64Array", [-9223372036854775808, 0, 9223372036854775807], "q"),
+        ("uint64Array", [0, 1, 0xFFFFFFFFFFFFFFFF], "Q"),
+        ("float32Array", [0.0, 1.5, -2.25], "f"),
+        ("float64Array", [0.0, 1.5, -2.25], "d"),
     ],
 )
-@pytest.mark.parametrize("container", ["bytes", "bytearray", "array", "tuple"])
+@pytest.mark.parametrize("container", ["array", "memoryview", "list"])
 def test_array_bulk_and_fallback_paths(
     kind: EncapsulationKind,
     method: str,
     values: list,
-    fmt: str,
     typecode: str,
     container: str,
 ) -> None:
     writer = CdrWriter(kind=kind)
-    endian = "<" if kind.value & 1 else ">"
-    if container == "bytes":
-        data = struct.pack(endian + fmt * len(values), *values)
-    elif container == "bytearray":
-        data = bytearray(struct.pack(endian + fmt * len(values), *values))
-    elif container == "array":
+    if container == "array":
         data = array(typecode, values)
+    elif container == "memoryview":
+        data = memoryview(array(typecode, values))
     else:
-        data = tuple(values)
+        data = list(values)
     getattr(writer, method)(data, True)
     reader = CdrReader(writer.data)
     read_method = method.replace("Array", "_array")
     result = getattr(reader, read_method)()
-    if isinstance(result, memoryview):
-        result = list(result)
+    result = list(result)
     assert result == values
 
 
