@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import struct
+from array import array
+
 import pytest
 
 from cdr.encapsulation_kind import EncapsulationKind
@@ -130,6 +133,41 @@ def test_round_trips_all_array_types(kind: EncapsulationKind) -> None:
     assert reader.uint32_array() == [0, 4294967295, 3]
     assert reader.int64_array() == [-9223372036854775808, 9223372036854775807, 3]
     assert reader.uint64_array() == [0, 18446744073709551615, 3]
+
+
+@pytest.mark.parametrize("kind", [EncapsulationKind.CDR_LE, EncapsulationKind.CDR_BE])
+@pytest.mark.parametrize(
+    "method, values, fmt, typecode",
+    [
+        ("int8Array", [-128, 0, 127], "b", "b"),
+        ("int16Array", [-32768, 0, 32767], "h", "h"),
+        ("uint32Array", [0, 1, 0xFFFFFFFF], "I", "I"),
+        ("float64Array", [0.0, 1.5, -2.25], "d", "d"),
+    ],
+)
+@pytest.mark.parametrize("container", ["bytes", "bytearray", "array", "tuple"])
+def test_array_bulk_and_fallback_paths(
+    kind: EncapsulationKind,
+    method: str,
+    values: list,
+    fmt: str,
+    typecode: str,
+    container: str,
+) -> None:
+    writer = CdrWriter(kind=kind)
+    endian = "<" if kind.value & 1 else ">"
+    if container == "bytes":
+        data = struct.pack(endian + fmt * len(values), *values)
+    elif container == "bytearray":
+        data = bytearray(struct.pack(endian + fmt * len(values), *values))
+    elif container == "array":
+        data = array(typecode, values)
+    else:
+        data = tuple(values)
+    getattr(writer, method)(data, True)
+    reader = CdrReader(writer.data)
+    read_method = method.replace("Array", "_array")
+    assert getattr(reader, read_method)() == values
 
 
 def test_writes_parameter_list_and_sentinel_header() -> None:
