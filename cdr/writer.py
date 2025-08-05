@@ -9,8 +9,8 @@ elsewhere in the project are implemented.
 from __future__ import annotations
 
 import struct
-from typing import Sequence
 from array import array as Array
+from typing import Sequence
 
 from .encapsulation_kind import EncapsulationKind
 from .get_encapsulation_kind_info import get_encapsulation_kind_info
@@ -27,7 +27,6 @@ class CdrWriter:
     """Serialise primitive values into a CDR formatted byte stream."""
 
     DEFAULT_CAPACITY = 16
-    BUFFER_COPY_THRESHOLD = 10
 
     def __init__(
         self,
@@ -205,7 +204,9 @@ class CdrWriter:
     # Array writers with bulk copy optimisations
     # ------------------------------------------------------------------
     def int8Array(
-        self, value: Sequence[int] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
@@ -225,7 +226,9 @@ class CdrWriter:
         return self
 
     def uint8Array(
-        self, value: Sequence[int] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
@@ -245,7 +248,9 @@ class CdrWriter:
         return self
 
     def int16Array(
-        self, value: Sequence[int] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if isinstance(value, (bytes, bytearray)):
             if writeLength:
@@ -260,7 +265,9 @@ class CdrWriter:
                 self.sequenceLength(n)
             self.align(2, n * 2)
             self._resize_if_needed(n * 2)
-            struct.pack_into(self._endian_fmt(f"{n}h"), self._buffer, self._offset, *value)
+            struct.pack_into(
+                self._endian_fmt(f"{n}h"), self._buffer, self._offset, *value
+            )
             self._offset += n * 2
         else:
             if writeLength:
@@ -270,7 +277,9 @@ class CdrWriter:
         return self
 
     def uint16Array(
-        self, value: Sequence[int] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if isinstance(value, (bytes, bytearray)):
             if writeLength:
@@ -285,7 +294,9 @@ class CdrWriter:
                 self.sequenceLength(n)
             self.align(2, n * 2)
             self._resize_if_needed(n * 2)
-            struct.pack_into(self._endian_fmt(f"{n}H"), self._buffer, self._offset, *value)
+            struct.pack_into(
+                self._endian_fmt(f"{n}H"), self._buffer, self._offset, *value
+            )
             self._offset += n * 2
         else:
             if writeLength:
@@ -295,7 +306,9 @@ class CdrWriter:
         return self
 
     def int32Array(
-        self, value: Sequence[int] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if isinstance(value, (bytes, bytearray)):
             if writeLength:
@@ -310,7 +323,9 @@ class CdrWriter:
                 self.sequenceLength(n)
             self.align(4, n * 4)
             self._resize_if_needed(n * 4)
-            struct.pack_into(self._endian_fmt(f"{n}i"), self._buffer, self._offset, *value)
+            struct.pack_into(
+                self._endian_fmt(f"{n}i"), self._buffer, self._offset, *value
+            )
             self._offset += n * 4
         else:
             if writeLength:
@@ -320,7 +335,9 @@ class CdrWriter:
         return self
 
     def uint32Array(
-        self, value: Sequence[int] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if isinstance(value, (bytes, bytearray)):
             if writeLength:
@@ -335,7 +352,9 @@ class CdrWriter:
                 self.sequenceLength(n)
             self.align(4, n * 4)
             self._resize_if_needed(n * 4)
-            struct.pack_into(self._endian_fmt(f"{n}I"), self._buffer, self._offset, *value)
+            struct.pack_into(
+                self._endian_fmt(f"{n}I"), self._buffer, self._offset, *value
+            )
             self._offset += n * 4
         else:
             if writeLength:
@@ -345,7 +364,9 @@ class CdrWriter:
         return self
 
     def int64Array(
-        self, value: Sequence[int] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if isinstance(value, (bytes, bytearray)):
             if writeLength:
@@ -360,7 +381,9 @@ class CdrWriter:
                 self.sequenceLength(n)
             self.align(self._eight_byte_alignment, n * 8)
             self._resize_if_needed(n * 8)
-            struct.pack_into(self._endian_fmt(f"{n}q"), self._buffer, self._offset, *value)
+            struct.pack_into(
+                self._endian_fmt(f"{n}q"), self._buffer, self._offset, *value
+            )
             self._offset += n * 8
         else:
             if writeLength:
@@ -370,7 +393,9 @@ class CdrWriter:
         return self
 
     def uint64Array(
-        self, value: Sequence[int] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if isinstance(value, (bytes, bytearray)):
             if writeLength:
@@ -385,7 +410,9 @@ class CdrWriter:
                 self.sequenceLength(n)
             self.align(self._eight_byte_alignment, n * 8)
             self._resize_if_needed(n * 8)
-            struct.pack_into(self._endian_fmt(f"{n}Q"), self._buffer, self._offset, *value)
+            struct.pack_into(
+                self._endian_fmt(f"{n}Q"), self._buffer, self._offset, *value
+            )
             self._offset += n * 8
         else:
             if writeLength:
@@ -395,7 +422,9 @@ class CdrWriter:
         return self
 
     def float32Array(
-        self, value: Sequence[float] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[float] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if isinstance(value, (bytes, bytearray)):
             if writeLength:
@@ -410,7 +439,9 @@ class CdrWriter:
                 self.sequenceLength(n)
             self.align(4, n * 4)
             self._resize_if_needed(n * 4)
-            struct.pack_into(self._endian_fmt(f"{n}f"), self._buffer, self._offset, *value)
+            struct.pack_into(
+                self._endian_fmt(f"{n}f"), self._buffer, self._offset, *value
+            )
             self._offset += n * 4
         else:
             if writeLength:
@@ -420,7 +451,9 @@ class CdrWriter:
         return self
 
     def float64Array(
-        self, value: Sequence[float] | bytes | bytearray | Array, writeLength: bool | None = False
+        self,
+        value: Sequence[float] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if isinstance(value, (bytes, bytearray)):
             if writeLength:
@@ -435,7 +468,9 @@ class CdrWriter:
                 self.sequenceLength(n)
             self.align(self._eight_byte_alignment, n * 8)
             self._resize_if_needed(n * 8)
-            struct.pack_into(self._endian_fmt(f"{n}d"), self._buffer, self._offset, *value)
+            struct.pack_into(
+                self._endian_fmt(f"{n}d"), self._buffer, self._offset, *value
+            )
             self._offset += n * 8
         else:
             if writeLength:
