@@ -167,7 +167,10 @@ def test_array_bulk_and_fallback_paths(
     getattr(writer, method)(data, True)
     reader = CdrReader(writer.data)
     read_method = method.replace("Array", "_array")
-    assert getattr(reader, read_method)() == values
+    result = getattr(reader, read_method)()
+    if isinstance(result, memoryview):
+        result = list(result)
+    assert result == values
 
 
 def test_writes_parameter_list_and_sentinel_header() -> None:
