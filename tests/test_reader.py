@@ -186,15 +186,35 @@ def test_handles_alignment_for_empty_arrays(writer_key: str, reader_key: str) ->
     assert reader.offset == len(writer.data)
 
 
-def test_array_returns_memoryview_zero_copy() -> None:
+@pytest.mark.parametrize(
+    "getter,setter,values,digits",
+    [
+        ("int8_array", "int8", [-1, 2, 3], None),
+        ("uint8_array", "uint8", [1, 2, 3], None),
+        ("int16_array", "int16", [-1, 2, 3], None),
+        ("uint16_array", "uint16", [1, 2, 3], None),
+        ("int32_array", "int32", [-1, 2, 3], None),
+        ("uint32_array", "uint32", [1, 2, 3], None),
+        ("int64_array", "int64", [-1, 2, 3], None),
+        ("uint64_array", "uint64", [1, 2, 3], None),
+        ("float32_array", "float32", [1.5, 2.5, 3.5], 6),
+        ("float64_array", "float64", [1.5, 2.5, 3.5], 15),
+    ],
+)
+def test_array_returns_memoryview_zero_copy(
+    getter: str, setter: str, values: list[int | float], digits: int | None
+) -> None:
     writer = CdrWriter()
-    _write_array(writer, "int32", [1, 2, 3])
+    _write_array(writer, setter, values)
 
     reader = CdrReader(writer.data)
-    mv = reader.int32_array()
+    mv = getattr(reader, getter)()
     assert isinstance(mv, memoryview)
     assert mv.obj is reader._view.obj
-    assert list(mv) == [1, 2, 3]
+    if digits is None:
+        assert list(mv) == values
+    else:
+        _assert_close_list(mv, values, digits)
 
 
 def test_array_falls_back_on_endian_mismatch() -> None:

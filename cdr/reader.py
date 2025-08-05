@@ -279,19 +279,11 @@ class CdrReader:
     # endianness).
     def int8_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
-        start = self.offset
-        end = start + count
-        data = self._view[start:end]
-        self.offset = end
-        return data.cast("b")
+        return self._array("b", count, 1)
 
     def uint8_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
-        start = self.offset
-        end = start + count
-        data = self._view[start:end]
-        self.offset = end
-        return data.cast("B")
+        return self._array("B", count, 1)
 
     def _array(
         self, fmt: str, count: int, alignment: int
@@ -309,47 +301,55 @@ class CdrReader:
         data = self._view[start:end]
         self.offset = end
 
-        if self.little_endian == self.host_little_endian and start % alignment == 0:
+        if (
+            self.little_endian == self.host_little_endian
+            and (start - self.origin) % alignment == 0
+        ):
             return data.cast(fmt)
+
+        if size == 1:
+            return list(data.cast(fmt))
 
         prefix = "<" if self.little_endian else ">"
         values = struct.unpack(prefix + f"{count}{fmt}", data.tobytes())
         return list(values)
 
-    def int16_array(self, count: int | None = None) -> List[int]:
+    def int16_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
         return self._array("h", count, 2)
 
-    def uint16_array(self, count: int | None = None) -> List[int]:
+    def uint16_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
         return self._array("H", count, 2)
 
-    def int32_array(self, count: int | None = None) -> List[int]:
+    def int32_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
         return self._array("i", count, 4)
 
-    def uint32_array(self, count: int | None = None) -> List[int]:
+    def uint32_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
         return self._array("I", count, 4)
 
-    def int64_array(self, count: int | None = None) -> List[int]:
+    def int64_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
         return self._array("q", count, self.eight_byte_alignment)
 
-    def uint64_array(self, count: int | None = None) -> List[int]:
+    def uint64_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
         return self._array("Q", count, self.eight_byte_alignment)
 
-    def float32_array(self, count: int | None = None) -> List[float]:
+    def float32_array(self, count: int | None = None) -> memoryview | List[float]:
         count = self.sequence_length() if count is None else count
         return self._array("f", count, 4)
 
-    def float64_array(self, count: int | None = None) -> List[float]:
+    def float64_array(self, count: int | None = None) -> memoryview | List[float]:
         count = self.sequence_length() if count is None else count
         return self._array("d", count, self.eight_byte_alignment)
 
     def string_array(self, count: int | None = None) -> List[str]:
         count = self.sequence_length() if count is None else count
+        if count == 0:
+            return []
         return [self.string() for _ in range(count)]
 
     # ------------------------------------------------------------------
