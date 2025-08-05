@@ -378,7 +378,7 @@ def _write_array(writer: CdrWriter, setter: str, values: list[int | float]) -> N
 def _assert_close_list(actual: list[float], expected: list[float], digits: int) -> None:
     assert len(actual) == len(expected)
     for a, e in zip(actual, expected):
-        assert a == pytest.approx(e, rel=0, abs=10 ** -digits)
+        assert a == pytest.approx(e, rel=0, abs=10**-digits)
 
 
 def _approx_list(actual: list[float], expected: list[float], digits: int) -> bool:
