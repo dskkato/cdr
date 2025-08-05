@@ -27,6 +27,16 @@ class CdrWriter:
     """Serialise primitive values into a CDR formatted byte stream."""
 
     DEFAULT_CAPACITY = 16
+    _ITEMSIZE = {
+        "h": 2,
+        "H": 2,
+        "i": 4,
+        "I": 4,
+        "q": 8,
+        "Q": 8,
+        "f": 4,
+        "d": 8,
+    }
 
     def __init__(
         self,
@@ -259,7 +269,10 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "h":
+            return self
+        if self._try_write_contiguous(value, "h", 2, writeLength):
+            return self
+        if isinstance(value, Array) and value.typecode == "h":
             n = len(value)
             if writeLength:
                 self.sequenceLength(n)
@@ -269,11 +282,11 @@ class CdrWriter:
                 self._endian_fmt(f"{n}h"), self._buffer, self._offset, *value
             )
             self._offset += n * 2
-        else:
-            if writeLength:
-                self.sequenceLength(len(value))
-            for entry in value:
-                self.int16(entry)
+            return self
+        if writeLength:
+            self.sequenceLength(len(value))
+        for entry in value:
+            self.int16(entry)
         return self
 
     def uint16Array(
@@ -288,7 +301,10 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "H":
+            return self
+        if self._try_write_contiguous(value, "H", 2, writeLength):
+            return self
+        if isinstance(value, Array) and value.typecode == "H":
             n = len(value)
             if writeLength:
                 self.sequenceLength(n)
@@ -298,11 +314,11 @@ class CdrWriter:
                 self._endian_fmt(f"{n}H"), self._buffer, self._offset, *value
             )
             self._offset += n * 2
-        else:
-            if writeLength:
-                self.sequenceLength(len(value))
-            for entry in value:
-                self.uint16(entry)
+            return self
+        if writeLength:
+            self.sequenceLength(len(value))
+        for entry in value:
+            self.uint16(entry)
         return self
 
     def int32Array(
@@ -317,7 +333,10 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "i":
+            return self
+        if self._try_write_contiguous(value, "i", 4, writeLength):
+            return self
+        if isinstance(value, Array) and value.typecode == "i":
             n = len(value)
             if writeLength:
                 self.sequenceLength(n)
@@ -327,11 +346,11 @@ class CdrWriter:
                 self._endian_fmt(f"{n}i"), self._buffer, self._offset, *value
             )
             self._offset += n * 4
-        else:
-            if writeLength:
-                self.sequenceLength(len(value))
-            for entry in value:
-                self.int32(entry)
+            return self
+        if writeLength:
+            self.sequenceLength(len(value))
+        for entry in value:
+            self.int32(entry)
         return self
 
     def uint32Array(
@@ -346,7 +365,10 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "I":
+            return self
+        if self._try_write_contiguous(value, "I", 4, writeLength):
+            return self
+        if isinstance(value, Array) and value.typecode == "I":
             n = len(value)
             if writeLength:
                 self.sequenceLength(n)
@@ -356,11 +378,11 @@ class CdrWriter:
                 self._endian_fmt(f"{n}I"), self._buffer, self._offset, *value
             )
             self._offset += n * 4
-        else:
-            if writeLength:
-                self.sequenceLength(len(value))
-            for entry in value:
-                self.uint32(entry)
+            return self
+        if writeLength:
+            self.sequenceLength(len(value))
+        for entry in value:
+            self.uint32(entry)
         return self
 
     def int64Array(
@@ -375,7 +397,12 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "q":
+            return self
+        if self._try_write_contiguous(
+            value, "q", self._eight_byte_alignment, writeLength
+        ):
+            return self
+        if isinstance(value, Array) and value.typecode == "q":
             n = len(value)
             if writeLength:
                 self.sequenceLength(n)
@@ -385,11 +412,11 @@ class CdrWriter:
                 self._endian_fmt(f"{n}q"), self._buffer, self._offset, *value
             )
             self._offset += n * 8
-        else:
-            if writeLength:
-                self.sequenceLength(len(value))
-            for entry in value:
-                self.int64(int(entry))
+            return self
+        if writeLength:
+            self.sequenceLength(len(value))
+        for entry in value:
+            self.int64(int(entry))
         return self
 
     def uint64Array(
@@ -404,7 +431,12 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "Q":
+            return self
+        if self._try_write_contiguous(
+            value, "Q", self._eight_byte_alignment, writeLength
+        ):
+            return self
+        if isinstance(value, Array) and value.typecode == "Q":
             n = len(value)
             if writeLength:
                 self.sequenceLength(n)
@@ -414,11 +446,11 @@ class CdrWriter:
                 self._endian_fmt(f"{n}Q"), self._buffer, self._offset, *value
             )
             self._offset += n * 8
-        else:
-            if writeLength:
-                self.sequenceLength(len(value))
-            for entry in value:
-                self.uint64(int(entry))
+            return self
+        if writeLength:
+            self.sequenceLength(len(value))
+        for entry in value:
+            self.uint64(int(entry))
         return self
 
     def float32Array(
@@ -433,7 +465,10 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "f":
+            return self
+        if self._try_write_contiguous(value, "f", 4, writeLength):
+            return self
+        if isinstance(value, Array) and value.typecode == "f":
             n = len(value)
             if writeLength:
                 self.sequenceLength(n)
@@ -443,11 +478,11 @@ class CdrWriter:
                 self._endian_fmt(f"{n}f"), self._buffer, self._offset, *value
             )
             self._offset += n * 4
-        else:
-            if writeLength:
-                self.sequenceLength(len(value))
-            for entry in value:
-                self.float32(float(entry))
+            return self
+        if writeLength:
+            self.sequenceLength(len(value))
+        for entry in value:
+            self.float32(float(entry))
         return self
 
     def float64Array(
@@ -462,7 +497,12 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "d":
+            return self
+        if self._try_write_contiguous(
+            value, "d", self._eight_byte_alignment, writeLength
+        ):
+            return self
+        if isinstance(value, Array) and value.typecode == "d":
             n = len(value)
             if writeLength:
                 self.sequenceLength(n)
@@ -472,16 +512,65 @@ class CdrWriter:
                 self._endian_fmt(f"{n}d"), self._buffer, self._offset, *value
             )
             self._offset += n * 8
-        else:
-            if writeLength:
-                self.sequenceLength(len(value))
-            for entry in value:
-                self.float64(float(entry))
+            return self
+        if writeLength:
+            self.sequenceLength(len(value))
+        for entry in value:
+            self.float64(float(entry))
         return self
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+    def _try_write_contiguous(
+        self,
+        value: object,
+        fmt_char: str,
+        align: int,
+        writeLength: bool | None,
+    ) -> bool:
+        """Attempt bulk copy from a contiguous typed buffer.
+
+        ``fmt_char`` is the expected PEP-3118 format character (without any
+        endianness prefix).  ``align`` is the alignment of the type in bytes.
+        Returns ``True`` if the value was written using a bulk copy,
+        ``False`` otherwise.
+        """
+
+        try:
+            mv = memoryview(value)
+        except TypeError:
+            return False
+
+        if not mv.c_contiguous or mv.itemsize != self._ITEMSIZE.get(fmt_char, 0):
+            return False
+
+        base = mv.format[-1]
+        prefix = mv.format[:-1]
+        if base != fmt_char:
+            return False
+
+        if prefix in ("", "@", "="):
+            mv_little = self._host_little_endian
+        elif prefix == "<":
+            mv_little = True
+        elif prefix in (">", "!"):
+            mv_little = False
+        else:
+            return False
+
+        if mv_little != self._little_endian:
+            return False
+
+        n = mv.nbytes // mv.itemsize
+        if writeLength:
+            self.sequenceLength(n)
+        self.align(align, mv.nbytes)
+        self._resize_if_needed(mv.nbytes)
+        self._buffer[self._offset : self._offset + mv.nbytes] = mv.cast("B")
+        self._offset += mv.nbytes
+        return True
+
     def reset_origin(self) -> None:
         """Set the origin used for alignment to the current offset."""
 
