@@ -145,7 +145,9 @@ def test_round_trips_all_array_types(kind: EncapsulationKind) -> None:
         ("float64Array", [0.0, 1.5, -2.25], "d", "d"),
     ],
 )
-@pytest.mark.parametrize("container", ["bytes", "bytearray", "array", "tuple"])
+@pytest.mark.parametrize(
+    "container", ["bytes", "bytearray", "array", "memoryview", "list"]
+)
 def test_array_bulk_and_fallback_paths(
     kind: EncapsulationKind,
     method: str,
@@ -162,12 +164,15 @@ def test_array_bulk_and_fallback_paths(
         data = bytearray(struct.pack(endian + fmt * len(values), *values))
     elif container == "array":
         data = array(typecode, values)
+    elif container == "memoryview":
+        data = memoryview(array(typecode, values))
     else:
-        data = tuple(values)
+        data = list(values)
     getattr(writer, method)(data, True)
     reader = CdrReader(writer.data)
     read_method = method.replace("Array", "_array")
-    assert getattr(reader, read_method)() == values
+    result = getattr(reader, read_method)()
+    assert list(result) == values
 
 
 def test_writes_parameter_list_and_sentinel_header() -> None:

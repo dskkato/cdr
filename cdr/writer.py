@@ -247,6 +247,46 @@ class CdrWriter:
                 self.uint8(entry)
         return self
 
+    def _write_typed_array(
+        self, value: object, writeLength: bool, code: str, align: int
+    ) -> bool:
+        """Attempt to bulk write ``value`` if it exposes a typed buffer."""
+
+        try:
+            mv = memoryview(value)
+        except TypeError:
+            return False
+        if mv.ndim != 1 or not mv.c_contiguous:
+            return False
+        if mv.itemsize != struct.calcsize(code):
+            return False
+
+        fmt = mv.format
+        prefix = fmt[0] if fmt and fmt[0] in "@=<>!" else ""
+        base = fmt[1:] if prefix else fmt
+        if base != code:
+            return False
+
+        if prefix in ("", "@", "="):
+            little = self._host_little_endian
+        else:
+            little = prefix == "<"
+
+        n = len(mv)
+        nbytes = mv.nbytes
+        if writeLength:
+            self.sequenceLength(n)
+        self.align(align, nbytes)
+        self._resize_if_needed(nbytes)
+        if little == self._little_endian:
+            self._buffer[self._offset : self._offset + nbytes] = mv.cast("B")
+        else:
+            struct.pack_into(
+                self._endian_fmt(f"{n}{code}"), self._buffer, self._offset, *mv
+            )
+        self._offset += nbytes
+        return True
+
     def int16Array(
         self,
         value: Sequence[int] | bytes | bytearray | Array,
@@ -259,16 +299,8 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "h":
-            n = len(value)
-            if writeLength:
-                self.sequenceLength(n)
-            self.align(2, n * 2)
-            self._resize_if_needed(n * 2)
-            struct.pack_into(
-                self._endian_fmt(f"{n}h"), self._buffer, self._offset, *value
-            )
-            self._offset += n * 2
+        elif self._write_typed_array(value, bool(writeLength), "h", 2):
+            pass
         else:
             if writeLength:
                 self.sequenceLength(len(value))
@@ -288,16 +320,8 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "H":
-            n = len(value)
-            if writeLength:
-                self.sequenceLength(n)
-            self.align(2, n * 2)
-            self._resize_if_needed(n * 2)
-            struct.pack_into(
-                self._endian_fmt(f"{n}H"), self._buffer, self._offset, *value
-            )
-            self._offset += n * 2
+        elif self._write_typed_array(value, bool(writeLength), "H", 2):
+            pass
         else:
             if writeLength:
                 self.sequenceLength(len(value))
@@ -317,16 +341,8 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "i":
-            n = len(value)
-            if writeLength:
-                self.sequenceLength(n)
-            self.align(4, n * 4)
-            self._resize_if_needed(n * 4)
-            struct.pack_into(
-                self._endian_fmt(f"{n}i"), self._buffer, self._offset, *value
-            )
-            self._offset += n * 4
+        elif self._write_typed_array(value, bool(writeLength), "i", 4):
+            pass
         else:
             if writeLength:
                 self.sequenceLength(len(value))
@@ -346,16 +362,8 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "I":
-            n = len(value)
-            if writeLength:
-                self.sequenceLength(n)
-            self.align(4, n * 4)
-            self._resize_if_needed(n * 4)
-            struct.pack_into(
-                self._endian_fmt(f"{n}I"), self._buffer, self._offset, *value
-            )
-            self._offset += n * 4
+        elif self._write_typed_array(value, bool(writeLength), "I", 4):
+            pass
         else:
             if writeLength:
                 self.sequenceLength(len(value))
@@ -375,16 +383,10 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "q":
-            n = len(value)
-            if writeLength:
-                self.sequenceLength(n)
-            self.align(self._eight_byte_alignment, n * 8)
-            self._resize_if_needed(n * 8)
-            struct.pack_into(
-                self._endian_fmt(f"{n}q"), self._buffer, self._offset, *value
-            )
-            self._offset += n * 8
+        elif self._write_typed_array(
+            value, bool(writeLength), "q", self._eight_byte_alignment
+        ):
+            pass
         else:
             if writeLength:
                 self.sequenceLength(len(value))
@@ -404,16 +406,10 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "Q":
-            n = len(value)
-            if writeLength:
-                self.sequenceLength(n)
-            self.align(self._eight_byte_alignment, n * 8)
-            self._resize_if_needed(n * 8)
-            struct.pack_into(
-                self._endian_fmt(f"{n}Q"), self._buffer, self._offset, *value
-            )
-            self._offset += n * 8
+        elif self._write_typed_array(
+            value, bool(writeLength), "Q", self._eight_byte_alignment
+        ):
+            pass
         else:
             if writeLength:
                 self.sequenceLength(len(value))
@@ -433,16 +429,8 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "f":
-            n = len(value)
-            if writeLength:
-                self.sequenceLength(n)
-            self.align(4, n * 4)
-            self._resize_if_needed(n * 4)
-            struct.pack_into(
-                self._endian_fmt(f"{n}f"), self._buffer, self._offset, *value
-            )
-            self._offset += n * 4
+        elif self._write_typed_array(value, bool(writeLength), "f", 4):
+            pass
         else:
             if writeLength:
                 self.sequenceLength(len(value))
@@ -462,16 +450,10 @@ class CdrWriter:
             self._resize_if_needed(len(value))
             self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
-        elif isinstance(value, Array) and value.typecode == "d":
-            n = len(value)
-            if writeLength:
-                self.sequenceLength(n)
-            self.align(self._eight_byte_alignment, n * 8)
-            self._resize_if_needed(n * 8)
-            struct.pack_into(
-                self._endian_fmt(f"{n}d"), self._buffer, self._offset, *value
-            )
-            self._offset += n * 8
+        elif self._write_typed_array(
+            value, bool(writeLength), "d", self._eight_byte_alignment
+        ):
+            pass
         else:
             if writeLength:
                 self.sequenceLength(len(value))
