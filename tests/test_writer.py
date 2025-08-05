@@ -125,14 +125,14 @@ def test_round_trips_all_array_types(kind: EncapsulationKind) -> None:
     writer.uint64Array([0, 18446744073709551615, 3], True)
 
     reader = CdrReader(writer.data)
-    assert reader.int8_array() == [-128, 127, 3]
-    assert reader.uint8_array() == [0, 255, 3]
-    assert reader.int16_array() == [-32768, 32767, -3]
-    assert reader.uint16_array() == [0, 65535, 3]
-    assert reader.int32_array() == [-2147483648, 2147483647, 3]
-    assert reader.uint32_array() == [0, 4294967295, 3]
-    assert reader.int64_array() == [-9223372036854775808, 9223372036854775807, 3]
-    assert reader.uint64_array() == [0, 18446744073709551615, 3]
+    assert list(reader.int8_array()) == [-128, 127, 3]
+    assert list(reader.uint8_array()) == [0, 255, 3]
+    assert list(reader.int16_array()) == [-32768, 32767, -3]
+    assert list(reader.uint16_array()) == [0, 65535, 3]
+    assert list(reader.int32_array()) == [-2147483648, 2147483647, 3]
+    assert list(reader.uint32_array()) == [0, 4294967295, 3]
+    assert list(reader.int64_array()) == [-9223372036854775808, 9223372036854775807, 3]
+    assert list(reader.uint64_array()) == [0, 18446744073709551615, 3]
 
 
 @pytest.mark.parametrize("kind", [EncapsulationKind.CDR_LE, EncapsulationKind.CDR_BE])

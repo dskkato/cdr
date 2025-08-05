@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from typing import Sequence
 
 import pytest
 
@@ -85,7 +86,7 @@ def test_reads_int_arrays(getter: str, setter: str, expected: list[int]) -> None
 
     reader = CdrReader(writer.data)
     array = getattr(reader, getter)()
-    assert array == expected
+    assert list(array) == expected
 
 
 @pytest.mark.parametrize(
@@ -134,7 +135,7 @@ def test_reads_bigint_arrays(getter: str, setter: str, expected: list[int]) -> N
 
     reader = CdrReader(writer.data)
     array = getattr(reader, getter)()
-    assert array == expected
+    assert list(array) == expected
 
 
 def test_reads_multiple_arrays() -> None:
@@ -181,8 +182,29 @@ def test_handles_alignment_for_empty_arrays(writer_key: str, reader_key: str) ->
     assert len(writer.data) == 8
 
     reader = CdrReader(writer.data)
-    assert getattr(reader, reader_key)() == []
+    assert list(getattr(reader, reader_key)()) == []
     assert reader.offset == len(writer.data)
+
+
+def test_array_returns_memoryview_zero_copy() -> None:
+    writer = CdrWriter()
+    _write_array(writer, "int32", [1, 2, 3])
+
+    reader = CdrReader(writer.data)
+    mv = reader.int32_array()
+    assert isinstance(mv, memoryview)
+    assert mv.obj is reader._view.obj
+    assert list(mv) == [1, 2, 3]
+
+
+def test_array_falls_back_on_endian_mismatch() -> None:
+    writer = CdrWriter(kind=EncapsulationKind.CDR_BE)
+    _write_array(writer, "uint32", [1, 2, 3])
+
+    reader = CdrReader(writer.data)
+    arr = reader.uint32_array()
+    assert isinstance(arr, list)
+    assert arr == [1, 2, 3]
 
 
 @pytest.mark.parametrize(
@@ -375,12 +397,16 @@ def _write_array(writer: CdrWriter, setter: str, values: list[int | float]) -> N
         getattr(writer, setter)(value)
 
 
-def _assert_close_list(actual: list[float], expected: list[float], digits: int) -> None:
+def _assert_close_list(
+    actual: Sequence[float], expected: Sequence[float], digits: int
+) -> None:
     assert len(actual) == len(expected)
     for a, e in zip(actual, expected):
         assert a == pytest.approx(e, rel=0, abs=10**-digits)
 
 
-def _approx_list(actual: list[float], expected: list[float], digits: int) -> bool:
+def _approx_list(
+    actual: Sequence[float], expected: Sequence[float], digits: int
+) -> bool:
     _assert_close_list(actual, expected, digits)
     return True
