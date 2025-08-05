@@ -274,32 +274,47 @@ class CdrReader:
     def sequence_length(self) -> int:
         return self.uint32()
 
-    # Array readers return a Python ``list`` for simplicity.
-    def int8_array(self, count: int | None = None) -> List[int]:
+    # Array readers return a zero-copy ``memoryview`` when possible and fall back
+    # to a Python ``list`` for incompatible cases (misalignment or mismatched
+    # endianness).
+    def int8_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
-        if count == 0:
-            return []
-        data = self._view[self.offset : self.offset + count]
-        self.offset += count
-        return list(struct.unpack(f"{count}b", data.tobytes()))
+        start = self.offset
+        end = start + count
+        data = self._view[start:end]
+        self.offset = end
+        return data.cast("b")
 
-    def uint8_array(self, count: int | None = None) -> List[int]:
+    def uint8_array(self, count: int | None = None) -> memoryview | List[int]:
         count = self.sequence_length() if count is None else count
-        if count == 0:
-            return []
-        data = self._view[self.offset : self.offset + count]
-        self.offset += count
-        return list(struct.unpack(f"{count}B", data.tobytes()))
+        start = self.offset
+        end = start + count
+        data = self._view[start:end]
+        self.offset = end
+        return data.cast("B")
 
-    def _array(self, fmt: str, count: int, alignment: int) -> List[int] | List[float]:
+    def _array(
+        self, fmt: str, count: int, alignment: int
+    ) -> memoryview | List[int] | List[float]:
         if count == 0:
-            return []
+            data = self._view[self.offset : self.offset]
+            return (
+                data.cast(fmt) if self.little_endian == self.host_little_endian else []
+            )
+
         self.align(alignment)
         size = struct.calcsize(fmt)
+        start = self.offset
+        end = start + size * count
+        data = self._view[start:end]
+        self.offset = end
+
+        if self.little_endian == self.host_little_endian and start % alignment == 0:
+            return data.cast(fmt)
+
         prefix = "<" if self.little_endian else ">"
-        data = struct.unpack_from(prefix + f"{count}{fmt}", self._view, self.offset)
-        self.offset += size * count
-        return list(data)
+        values = struct.unpack(prefix + f"{count}{fmt}", data.tobytes())
+        return list(values)
 
     def int16_array(self, count: int | None = None) -> List[int]:
         count = self.sequence_length() if count is None else count
