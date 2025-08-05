@@ -9,6 +9,7 @@ elsewhere in the project are implemented.
 from __future__ import annotations
 
 import struct
+from array import array as Array
 from typing import Sequence
 
 from .encapsulation_kind import EncapsulationKind
@@ -26,7 +27,6 @@ class CdrWriter:
     """Serialise primitive values into a CDR formatted byte stream."""
 
     DEFAULT_CAPACITY = 16
-    BUFFER_COPY_THRESHOLD = 10
 
     def __init__(
         self,
@@ -201,106 +201,282 @@ class CdrWriter:
         return self.uint32(value)
 
     # ------------------------------------------------------------------
-    # Array writers (simple loop based implementations)
+    # Array writers with bulk copy optimisations
     # ------------------------------------------------------------------
     def int8Array(
-        self, value: Sequence[int] | bytes | bytearray, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         if isinstance(value, (bytes, bytearray)):
             self._resize_if_needed(len(value))
-            self._buffer[self._offset : self._offset + len(value)] = value
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode in ("b", "B"):
+            n = len(value)
+            self._resize_if_needed(n)
+            mv = memoryview(value).cast("B")
+            self._buffer[self._offset : self._offset + n] = mv
+            self._offset += n
         else:
             for entry in value:
                 self.int8(entry)
         return self
 
     def uint8Array(
-        self, value: Sequence[int] | bytes | bytearray, writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
         if writeLength:
             self.sequenceLength(len(value))
         if isinstance(value, (bytes, bytearray)):
             self._resize_if_needed(len(value))
-            self._buffer[self._offset : self._offset + len(value)] = value
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
             self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode in ("b", "B"):
+            n = len(value)
+            self._resize_if_needed(n)
+            mv = memoryview(value).cast("B")
+            self._buffer[self._offset : self._offset + n] = mv
+            self._offset += n
         else:
             for entry in value:
                 self.uint8(entry)
         return self
 
     def int16Array(
-        self, value: Sequence[int], writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
-        if writeLength:
-            self.sequenceLength(len(value))
-        for entry in value:
-            self.int16(entry)
+        if isinstance(value, (bytes, bytearray)):
+            if writeLength:
+                self.sequenceLength(len(value) // 2)
+            self.align(2, len(value))
+            self._resize_if_needed(len(value))
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
+            self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode == "h":
+            n = len(value)
+            if writeLength:
+                self.sequenceLength(n)
+            self.align(2, n * 2)
+            self._resize_if_needed(n * 2)
+            struct.pack_into(
+                self._endian_fmt(f"{n}h"), self._buffer, self._offset, *value
+            )
+            self._offset += n * 2
+        else:
+            if writeLength:
+                self.sequenceLength(len(value))
+            for entry in value:
+                self.int16(entry)
         return self
 
     def uint16Array(
-        self, value: Sequence[int], writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
-        if writeLength:
-            self.sequenceLength(len(value))
-        for entry in value:
-            self.uint16(entry)
+        if isinstance(value, (bytes, bytearray)):
+            if writeLength:
+                self.sequenceLength(len(value) // 2)
+            self.align(2, len(value))
+            self._resize_if_needed(len(value))
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
+            self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode == "H":
+            n = len(value)
+            if writeLength:
+                self.sequenceLength(n)
+            self.align(2, n * 2)
+            self._resize_if_needed(n * 2)
+            struct.pack_into(
+                self._endian_fmt(f"{n}H"), self._buffer, self._offset, *value
+            )
+            self._offset += n * 2
+        else:
+            if writeLength:
+                self.sequenceLength(len(value))
+            for entry in value:
+                self.uint16(entry)
         return self
 
     def int32Array(
-        self, value: Sequence[int], writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
-        if writeLength:
-            self.sequenceLength(len(value))
-        for entry in value:
-            self.int32(entry)
+        if isinstance(value, (bytes, bytearray)):
+            if writeLength:
+                self.sequenceLength(len(value) // 4)
+            self.align(4, len(value))
+            self._resize_if_needed(len(value))
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
+            self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode == "i":
+            n = len(value)
+            if writeLength:
+                self.sequenceLength(n)
+            self.align(4, n * 4)
+            self._resize_if_needed(n * 4)
+            struct.pack_into(
+                self._endian_fmt(f"{n}i"), self._buffer, self._offset, *value
+            )
+            self._offset += n * 4
+        else:
+            if writeLength:
+                self.sequenceLength(len(value))
+            for entry in value:
+                self.int32(entry)
         return self
 
     def uint32Array(
-        self, value: Sequence[int], writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
-        if writeLength:
-            self.sequenceLength(len(value))
-        for entry in value:
-            self.uint32(entry)
+        if isinstance(value, (bytes, bytearray)):
+            if writeLength:
+                self.sequenceLength(len(value) // 4)
+            self.align(4, len(value))
+            self._resize_if_needed(len(value))
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
+            self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode == "I":
+            n = len(value)
+            if writeLength:
+                self.sequenceLength(n)
+            self.align(4, n * 4)
+            self._resize_if_needed(n * 4)
+            struct.pack_into(
+                self._endian_fmt(f"{n}I"), self._buffer, self._offset, *value
+            )
+            self._offset += n * 4
+        else:
+            if writeLength:
+                self.sequenceLength(len(value))
+            for entry in value:
+                self.uint32(entry)
         return self
 
     def int64Array(
-        self, value: Sequence[int], writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
-        if writeLength:
-            self.sequenceLength(len(value))
-        for entry in value:
-            self.int64(int(entry))
+        if isinstance(value, (bytes, bytearray)):
+            if writeLength:
+                self.sequenceLength(len(value) // 8)
+            self.align(self._eight_byte_alignment, len(value))
+            self._resize_if_needed(len(value))
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
+            self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode == "q":
+            n = len(value)
+            if writeLength:
+                self.sequenceLength(n)
+            self.align(self._eight_byte_alignment, n * 8)
+            self._resize_if_needed(n * 8)
+            struct.pack_into(
+                self._endian_fmt(f"{n}q"), self._buffer, self._offset, *value
+            )
+            self._offset += n * 8
+        else:
+            if writeLength:
+                self.sequenceLength(len(value))
+            for entry in value:
+                self.int64(int(entry))
         return self
 
     def uint64Array(
-        self, value: Sequence[int], writeLength: bool | None = False
+        self,
+        value: Sequence[int] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
-        if writeLength:
-            self.sequenceLength(len(value))
-        for entry in value:
-            self.uint64(int(entry))
+        if isinstance(value, (bytes, bytearray)):
+            if writeLength:
+                self.sequenceLength(len(value) // 8)
+            self.align(self._eight_byte_alignment, len(value))
+            self._resize_if_needed(len(value))
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
+            self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode == "Q":
+            n = len(value)
+            if writeLength:
+                self.sequenceLength(n)
+            self.align(self._eight_byte_alignment, n * 8)
+            self._resize_if_needed(n * 8)
+            struct.pack_into(
+                self._endian_fmt(f"{n}Q"), self._buffer, self._offset, *value
+            )
+            self._offset += n * 8
+        else:
+            if writeLength:
+                self.sequenceLength(len(value))
+            for entry in value:
+                self.uint64(int(entry))
         return self
 
     def float32Array(
-        self, value: Sequence[float], writeLength: bool | None = False
+        self,
+        value: Sequence[float] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
-        if writeLength:
-            self.sequenceLength(len(value))
-        for entry in value:
-            self.float32(float(entry))
+        if isinstance(value, (bytes, bytearray)):
+            if writeLength:
+                self.sequenceLength(len(value) // 4)
+            self.align(4, len(value))
+            self._resize_if_needed(len(value))
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
+            self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode == "f":
+            n = len(value)
+            if writeLength:
+                self.sequenceLength(n)
+            self.align(4, n * 4)
+            self._resize_if_needed(n * 4)
+            struct.pack_into(
+                self._endian_fmt(f"{n}f"), self._buffer, self._offset, *value
+            )
+            self._offset += n * 4
+        else:
+            if writeLength:
+                self.sequenceLength(len(value))
+            for entry in value:
+                self.float32(float(entry))
         return self
 
     def float64Array(
-        self, value: Sequence[float], writeLength: bool | None = False
+        self,
+        value: Sequence[float] | bytes | bytearray | Array,
+        writeLength: bool | None = False,
     ) -> CdrWriter:
-        if writeLength:
-            self.sequenceLength(len(value))
-        for entry in value:
-            self.float64(float(entry))
+        if isinstance(value, (bytes, bytearray)):
+            if writeLength:
+                self.sequenceLength(len(value) // 8)
+            self.align(self._eight_byte_alignment, len(value))
+            self._resize_if_needed(len(value))
+            self._buffer[self._offset : self._offset + len(value)] = memoryview(value)
+            self._offset += len(value)
+        elif isinstance(value, Array) and value.typecode == "d":
+            n = len(value)
+            if writeLength:
+                self.sequenceLength(n)
+            self.align(self._eight_byte_alignment, n * 8)
+            self._resize_if_needed(n * 8)
+            struct.pack_into(
+                self._endian_fmt(f"{n}d"), self._buffer, self._offset, *value
+            )
+            self._offset += n * 8
+        else:
+            if writeLength:
+                self.sequenceLength(len(value))
+            for entry in value:
+                self.float64(float(entry))
         return self
 
     # ------------------------------------------------------------------
