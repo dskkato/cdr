@@ -347,7 +347,9 @@ class CdrReader:
             return []
 
         self.align(alignment)
-        size = _ITEMSIZE[fmt]
+        size = _ITEMSIZE.get(fmt)
+        if size is None:
+            size = struct.calcsize(fmt)
         start = self.offset
         end = start + size * count
         data = self._view[start:end]
@@ -362,7 +364,7 @@ class CdrReader:
         if size == 1:
             return list(data.cast(cast(Any, fmt)))
 
-        values = struct.unpack(self._endian_prefix + f"{count}{fmt}", data.tobytes())
+        values = struct.unpack(f"{self._endian_prefix}{count}{fmt}", data.tobytes())
         return list(values)
 
     def int16_array(self, count: int | None = None) -> Sequence[int]:
