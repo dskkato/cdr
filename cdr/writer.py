@@ -10,8 +10,12 @@ from __future__ import annotations
 
 import struct
 from array import array as Array
-from collections.abc import Buffer
 from typing import Sequence, cast
+
+try:  # Python 3.12+
+    from collections.abc import Buffer
+except ImportError:  # Python <3.12
+    from typing_extensions import Buffer
 
 from .encapsulation_kind import EncapsulationKind
 from .get_encapsulation_kind_info import get_encapsulation_kind_info
