@@ -18,6 +18,43 @@ from .is_big_endian import is_big_endian
 from .length_codes import LengthCode, length_code_to_object_sizes
 from .reserved_pids import EXTENDED_PID, SENTINEL_PID
 
+# Precompiled ``struct`` format objects to avoid repeatedly parsing the
+# same format strings.  ``struct.Struct`` instances are considerably faster
+# when used many times as they cache the parsing of the format.
+_INT8 = struct.Struct("b")
+_UINT8 = struct.Struct("B")
+_INT16_LE = struct.Struct("<h")
+_INT16_BE = struct.Struct(">h")
+_UINT16_LE = struct.Struct("<H")
+_UINT16_BE = struct.Struct(">H")
+_INT32_LE = struct.Struct("<i")
+_INT32_BE = struct.Struct(">i")
+_UINT32_LE = struct.Struct("<I")
+_UINT32_BE = struct.Struct(">I")
+_INT64_LE = struct.Struct("<q")
+_INT64_BE = struct.Struct(">q")
+_UINT64_LE = struct.Struct("<Q")
+_UINT64_BE = struct.Struct(">Q")
+_FLOAT32_LE = struct.Struct("<f")
+_FLOAT32_BE = struct.Struct(">f")
+_FLOAT64_LE = struct.Struct("<d")
+_FLOAT64_BE = struct.Struct(">d")
+
+# Mapping from format character to item size.  Using a dictionary avoids the
+# overhead of calling :func:`struct.calcsize` repeatedly when decoding arrays.
+_ITEMSIZE = {
+    "b": 1,
+    "B": 1,
+    "h": 2,
+    "H": 2,
+    "i": 4,
+    "I": 4,
+    "q": 8,
+    "Q": 8,
+    "f": 4,
+    "d": 8,
+}
+
 
 @dataclass
 class MemberHeader:
@@ -56,6 +93,29 @@ class CdrReader:
         self.uses_delimiter_header = info.uses_delimiter_header
         self.uses_member_header = info.uses_member_header
 
+        # Pre-select struct objects and prefix based on endianness so that
+        # primitive readers avoid branching and repeated format parsing.
+        if self.little_endian:
+            self._int16_struct = _INT16_LE
+            self._uint16_struct = _UINT16_LE
+            self._int32_struct = _INT32_LE
+            self._uint32_struct = _UINT32_LE
+            self._int64_struct = _INT64_LE
+            self._uint64_struct = _UINT64_LE
+            self._float32_struct = _FLOAT32_LE
+            self._float64_struct = _FLOAT64_LE
+            self._endian_prefix = "<"
+        else:
+            self._int16_struct = _INT16_BE
+            self._uint16_struct = _UINT16_BE
+            self._int32_struct = _INT32_BE
+            self._uint32_struct = _UINT32_BE
+            self._int64_struct = _INT64_BE
+            self._uint64_struct = _UINT64_BE
+            self._float32_struct = _FLOAT32_BE
+            self._float64_struct = _FLOAT64_BE
+            self._endian_prefix = ">"
+
         # Origin and current offset start immediately after the four byte header
         self.origin = 4
         self.offset = 4
@@ -79,86 +139,78 @@ class CdrReader:
     # Primitive readers
     # ------------------------------------------------------------------
     def int8(self) -> int:
-        value = struct.unpack_from("b", self._view, self.offset)[0]
+        value = _INT8.unpack_from(self._view, self.offset)[0]
         self.offset += 1
         return value
 
     def uint8(self) -> int:
-        value = struct.unpack_from("B", self._view, self.offset)[0]
+        value = _UINT8.unpack_from(self._view, self.offset)[0]
         self.offset += 1
         return value
 
     def int16(self) -> int:
         self.align(2)
-        fmt = "<h" if self.little_endian else ">h"
-        value = struct.unpack_from(fmt, self._view, self.offset)[0]
+        value = self._int16_struct.unpack_from(self._view, self.offset)[0]
         self.offset += 2
         return value
 
     def uint16(self) -> int:
         self.align(2)
-        fmt = "<H" if self.little_endian else ">H"
-        value = struct.unpack_from(fmt, self._view, self.offset)[0]
+        value = self._uint16_struct.unpack_from(self._view, self.offset)[0]
         self.offset += 2
         return value
 
     def int32(self) -> int:
         self.align(4)
-        fmt = "<i" if self.little_endian else ">i"
-        value = struct.unpack_from(fmt, self._view, self.offset)[0]
+        value = self._int32_struct.unpack_from(self._view, self.offset)[0]
         self.offset += 4
         return value
 
     def uint32(self) -> int:
         self.align(4)
-        fmt = "<I" if self.little_endian else ">I"
-        value = struct.unpack_from(fmt, self._view, self.offset)[0]
+        value = self._uint32_struct.unpack_from(self._view, self.offset)[0]
         self.offset += 4
         return value
 
     def int64(self) -> int:
         self.align(self.eight_byte_alignment)
-        fmt = "<q" if self.little_endian else ">q"
-        value = struct.unpack_from(fmt, self._view, self.offset)[0]
+        value = self._int64_struct.unpack_from(self._view, self.offset)[0]
         self.offset += 8
         return value
 
     def uint64(self) -> int:
         self.align(self.eight_byte_alignment)
-        fmt = "<Q" if self.little_endian else ">Q"
-        value = struct.unpack_from(fmt, self._view, self.offset)[0]
+        value = self._uint64_struct.unpack_from(self._view, self.offset)[0]
         self.offset += 8
         return value
 
     def uint16_be(self) -> int:
         self.align(2)
-        value = struct.unpack_from(">H", self._view, self.offset)[0]
+        value = _UINT16_BE.unpack_from(self._view, self.offset)[0]
         self.offset += 2
         return value
 
     def uint32_be(self) -> int:
         self.align(4)
-        value = struct.unpack_from(">I", self._view, self.offset)[0]
+        value = _UINT32_BE.unpack_from(self._view, self.offset)[0]
         self.offset += 4
         return value
 
     def uint64_be(self) -> int:
         self.align(self.eight_byte_alignment)
-        value = struct.unpack_from(">Q", self._view, self.offset)[0]
+        value = _UINT64_BE.unpack_from(self._view, self.offset)[0]
         self.offset += 8
         return value
 
     def float32(self) -> float:
         self.align(4)
-        fmt = "<f" if self.little_endian else ">f"
-        value = struct.unpack_from(fmt, self._view, self.offset)[0]
+        value = self._float32_struct.unpack_from(self._view, self.offset)[0]
         self.offset += 4
         return value
 
     def float64(self) -> float:
         self.align(self.eight_byte_alignment)
-        fmt = "<d" if self.little_endian else ">d"
-        value = struct.unpack_from(fmt, self._view, self.offset)[0]
+        value = self._float64_struct.unpack_from(self._view, self.offset)[0]
         self.offset += 8
         return value
 
@@ -295,7 +347,9 @@ class CdrReader:
             return []
 
         self.align(alignment)
-        size = struct.calcsize(fmt)
+        size = _ITEMSIZE.get(fmt)
+        if size is None:
+            size = struct.calcsize(fmt)
         start = self.offset
         end = start + size * count
         data = self._view[start:end]
@@ -310,8 +364,7 @@ class CdrReader:
         if size == 1:
             return list(data.cast(cast(Any, fmt)))
 
-        prefix = "<" if self.little_endian else ">"
-        values = struct.unpack(prefix + f"{count}{fmt}", data.tobytes())
+        values = struct.unpack(f"{self._endian_prefix}{count}{fmt}", data.tobytes())
         return list(values)
 
     def int16_array(self, count: int | None = None) -> Sequence[int]:
