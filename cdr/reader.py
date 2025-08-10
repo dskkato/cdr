@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import struct
 from dataclasses import dataclass
-from typing import List
+from typing import Any, Sequence, cast
 
 from .encapsulation_kind import EncapsulationKind
 from .get_encapsulation_kind_info import get_encapsulation_kind_info
@@ -225,14 +225,14 @@ class CdrReader:
     def _member_header_v2(self) -> MemberHeader:
         header = self.uint32()
         must_understand = ((header & 0x80000000) >> 31) == 1
-        length_code = ((header & 0x70000000) >> 28) & 0x7
+        length_code = cast(LengthCode, ((header & 0x70000000) >> 28) & 0x7)
         pid = header & 0x0FFFFFFF
-        object_size = self._em_header_object_size(length_code)  # type: ignore[arg-type]
+        object_size = self._em_header_object_size(length_code)
         return MemberHeader(
             id=pid,
             object_size=object_size,
             must_understand=must_understand,
-            length_code=length_code,  # type: ignore[assignment]
+            length_code=length_code,
         )
 
     def _em_header_object_size(self, length_code: LengthCode) -> int:
@@ -277,22 +277,22 @@ class CdrReader:
     # Array readers return a zero-copy ``memoryview`` when possible and fall back
     # to a Python ``list`` for incompatible cases (misalignment or mismatched
     # endianness).
-    def int8_array(self, count: int | None = None) -> memoryview | List[int]:
+    def int8_array(self, count: int | None = None) -> Sequence[int]:
         count = self.sequence_length() if count is None else count
-        return self._array("b", count, 1)
+        return cast("Sequence[int]", self._array("b", count, 1))
 
-    def uint8_array(self, count: int | None = None) -> memoryview | List[int]:
+    def uint8_array(self, count: int | None = None) -> Sequence[int]:
         count = self.sequence_length() if count is None else count
-        return self._array("B", count, 1)
+        return cast("Sequence[int]", self._array("B", count, 1))
 
     def _array(
         self, fmt: str, count: int, alignment: int
-    ) -> memoryview | List[int] | List[float]:
+    ) -> Sequence[int] | Sequence[float]:
         if count == 0:
             data = self._view[self.offset : self.offset]
-            return (
-                data.cast(fmt) if self.little_endian == self.host_little_endian else []
-            )
+            if self.little_endian == self.host_little_endian:
+                return data.cast(cast(Any, fmt))
+            return []
 
         self.align(alignment)
         size = struct.calcsize(fmt)
@@ -305,48 +305,51 @@ class CdrReader:
             self.little_endian == self.host_little_endian
             and (start - self.origin) % alignment == 0
         ):
-            return data.cast(fmt)
+            return data.cast(cast(Any, fmt))
 
         if size == 1:
-            return list(data.cast(fmt))
+            return list(data.cast(cast(Any, fmt)))
 
         prefix = "<" if self.little_endian else ">"
         values = struct.unpack(prefix + f"{count}{fmt}", data.tobytes())
         return list(values)
 
-    def int16_array(self, count: int | None = None) -> memoryview | List[int]:
+    def int16_array(self, count: int | None = None) -> Sequence[int]:
         count = self.sequence_length() if count is None else count
-        return self._array("h", count, 2)
+        return cast("Sequence[int]", self._array("h", count, 2))
 
-    def uint16_array(self, count: int | None = None) -> memoryview | List[int]:
+    def uint16_array(self, count: int | None = None) -> Sequence[int]:
         count = self.sequence_length() if count is None else count
-        return self._array("H", count, 2)
+        return cast("Sequence[int]", self._array("H", count, 2))
 
-    def int32_array(self, count: int | None = None) -> memoryview | List[int]:
+    def int32_array(self, count: int | None = None) -> Sequence[int]:
         count = self.sequence_length() if count is None else count
-        return self._array("i", count, 4)
+        return cast("Sequence[int]", self._array("i", count, 4))
 
-    def uint32_array(self, count: int | None = None) -> memoryview | List[int]:
+    def uint32_array(self, count: int | None = None) -> Sequence[int]:
         count = self.sequence_length() if count is None else count
-        return self._array("I", count, 4)
+        return cast("Sequence[int]", self._array("I", count, 4))
 
-    def int64_array(self, count: int | None = None) -> memoryview | List[int]:
+    def int64_array(self, count: int | None = None) -> Sequence[int]:
         count = self.sequence_length() if count is None else count
-        return self._array("q", count, self.eight_byte_alignment)
+        return cast("Sequence[int]", self._array("q", count, self.eight_byte_alignment))
 
-    def uint64_array(self, count: int | None = None) -> memoryview | List[int]:
+    def uint64_array(self, count: int | None = None) -> Sequence[int]:
         count = self.sequence_length() if count is None else count
-        return self._array("Q", count, self.eight_byte_alignment)
+        return cast("Sequence[int]", self._array("Q", count, self.eight_byte_alignment))
 
-    def float32_array(self, count: int | None = None) -> memoryview | List[float]:
+    def float32_array(self, count: int | None = None) -> Sequence[float]:
         count = self.sequence_length() if count is None else count
-        return self._array("f", count, 4)
+        return cast("Sequence[float]", self._array("f", count, 4))
 
-    def float64_array(self, count: int | None = None) -> memoryview | List[float]:
+    def float64_array(self, count: int | None = None) -> Sequence[float]:
         count = self.sequence_length() if count is None else count
-        return self._array("d", count, self.eight_byte_alignment)
+        return cast(
+            "Sequence[float]",
+            self._array("d", count, self.eight_byte_alignment),
+        )
 
-    def string_array(self, count: int | None = None) -> List[str]:
+    def string_array(self, count: int | None = None) -> list[str]:
         count = self.sequence_length() if count is None else count
         if count == 0:
             return []

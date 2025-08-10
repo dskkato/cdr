@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import struct
 from array import array as Array
-from typing import Sequence
+from collections.abc import Buffer
+from typing import Sequence, cast
 
 from .encapsulation_kind import EncapsulationKind
 from .get_encapsulation_kind_info import get_encapsulation_kind_info
@@ -538,7 +539,7 @@ class CdrWriter:
         """
 
         try:
-            mv = memoryview(value)
+            mv = memoryview(cast(Buffer, value))
         except TypeError:
             return False
 
