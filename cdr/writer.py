@@ -10,7 +10,12 @@ from __future__ import annotations
 
 import struct
 from array import array as Array
-from typing import Sequence
+from typing import Sequence, cast
+
+try:  # Python 3.12+
+    from collections.abc import Buffer
+except ImportError:  # Python <3.12
+    from typing_extensions import Buffer
 
 from .encapsulation_kind import EncapsulationKind
 from .get_encapsulation_kind_info import get_encapsulation_kind_info
@@ -538,7 +543,7 @@ class CdrWriter:
         """
 
         try:
-            mv = memoryview(value)
+            mv = memoryview(cast(Buffer, value))
         except TypeError:
             return False
 

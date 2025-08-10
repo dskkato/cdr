@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Python package for the cdr project"
 requires-python = ">=3.10"
 dependencies = [
-  "typing",
+  "typing-extensions",
 ]
 
 [project.optional-dependencies]
